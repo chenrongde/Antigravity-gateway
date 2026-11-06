@@ -153,7 +153,7 @@ func (n *ResponseNormalizer) NormalizeNonStreaming(rawResp []byte, syntheticTool
 			} else {
 				delete(mMap, "tool_calls")
 				finishReason, _ := cMap["finish_reason"].(string)
-				if finishReason == "tool_calls" {
+				if finishReason == "tool_calls" || ((finishReason == "content_filter" || finishReason == "prohibited_content" || finishReason == "SAFETY") && strings.TrimSpace(finalSyntheticContent) != "") {
 					cMap["finish_reason"] = "stop"
 				}
 			}
@@ -161,6 +161,14 @@ func (n *ResponseNormalizer) NormalizeNonStreaming(rawResp []byte, syntheticTool
 			// No synthetic tool calls
 			if n.cfg.WrapperMode == "required" && len(realCalls) == 0 {
 				return nil, stats, fmt.Errorf("synthetic tool call required but not present in upstream response")
+			}
+			if origContent, exists := mMap["content"]; exists && origContent != nil {
+				if strContent, ok := origContent.(string); ok && strings.TrimSpace(strContent) != "" {
+					finishReason, _ := cMap["finish_reason"].(string)
+					if finishReason == "content_filter" || finishReason == "prohibited_content" || finishReason == "SAFETY" {
+						cMap["finish_reason"] = "stop"
+					}
+				}
 			}
 		}
 

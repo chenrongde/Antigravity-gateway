@@ -1,10 +1,13 @@
-# Antigravity Gateway (OpenAI Chat 防截断兼容网关)
+# Antigravity Gateway
+
+**面向 OpenAI Chat Completions 协议的防截断兼容网关** —— Go 原生核心，可独立部署为服务端，也可通过 JNI 内嵌为 Android 本地代理。
+
+[![Release](https://img.shields.io/github/v/release/Xeltra233/Antigravity-gateway?label=release)](https://github.com/Xeltra233/Antigravity-gateway/releases/latest)
+[![Build & Release](https://github.com/Xeltra233/Antigravity-gateway/actions/workflows/release.yml/badge.svg)](https://github.com/Xeltra233/Antigravity-gateway/actions/workflows/release.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](#-license)
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat-square&logo=go" alt="Go Version">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/Architecture-Headless%20%7C%20High--Concurrency-blue.svg?style=flat-square" alt="Architecture">
-  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Android%20%7C%20Docker-orange.svg?style=flat-square" alt="Platform">
+  <img src="android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" width="96" alt="App Icon" />
 </p>
 
 ---
@@ -12,25 +15,40 @@
 ## 📑 目录 (Table of Contents)
 
 - [🇨🇳 中文说明](#-中文说明)
-  - [项目简介与解决痛点](#-项目简介与解决痛点)
-  - [🌟 核心工作原理与特性](#-核心工作原理与特性)
-  - [📥 获取与运行方式（免安装/Android/Docker/源码）](#-获取与运行方式按你的环境选择)
-  - [⚙️ 配置详解与环境变量 (完整参考)](#️-配置详解与环境变量)
-  - [🚀 部署与运行方式 (Windows/Linux/Docker/Systemd)](#-部署与运行方式)
-  - [🔑 多用户动态 Key 管理 API (/admin/keys)](#-多用户动态-key-管理-api)
-  - [📱 客户端接入实战 (SillyTavern / Cherry Studio 等)](#-客户端接入实战)
+  - [项目简介](#-项目简介)
+  - [🚀 五分钟快速开始](#-五分钟快速开始)
+  - [🌟 核心特性](#-核心特性)
+  - [🧭 兼容性矩阵](#-兼容性矩阵)
+  - [📱 界面与功能使用](#-界面与功能使用)
+  - [🩺 崩溃诊断与安全模式](#-崩溃诊断与安全模式)
+  - [⚙️ 技术架构与安全性](#️-技术架构与安全性)
+  - [🛠️ 本地编译与构建](#️-本地编译与构建)
+  - [⚙️ 配置详解与环境变量](#️-配置详解与环境变量)
+  - [🚀 部署与运行方式](#-部署与运行方式)
+  - [🔑 多用户动态 Key 管理 API](#-多用户动态-key-管理-api)
+  - [📱 客户端接入实战](#-客户端接入实战)
   - [🛡️ 运维监控与健康检查](#️-运维监控与健康检查)
+  - [🗂️ 项目结构](#️-项目结构)
+  - [📦 版本与发布流程](#-版本与发布流程)
   - [❓ 常见问题排查 (FAQ)](#-常见问题排查-faq)
 - [🇬🇧 English Documentation](#-english-documentation)
-  - [Overview & Problems Solved](#overview--problems-solved)
-  - [🌟 Key Architecture & Features](#-key-architecture--features)
-  - [📥 Installation & Getting Started (Prebuilt / Android / Docker / Source)](#-installation--getting-started)
-  - [⚙️ Configuration & Environment Variables (Full Reference)](#️-configuration--environment-variables)
-  - [🚀 Deployment Methods (Windows / Linux / Docker / Systemd)](#-deployment-methods)
-  - [🔑 Dynamic Multi-Key Management API (/admin/keys)](#-dynamic-multi-key-management-api)
-  - [📱 Client Integration (SillyTavern, Cherry Studio, etc.)](#-client-integration)
+  - [Overview](#overview)
+  - [🚀 Quick Start](#-quick-start)
+  - [🌟 Key Features](#-key-features)
+  - [🧭 Compatibility Matrix](#-compatibility-matrix)
+  - [📱 UI & Usage Guide](#-ui--usage-guide)
+  - [🩺 Crash Reports & Safe Mode](#-crash-reports--safe-mode)
+  - [⚙️ Technical Architecture & Security](#️-technical-architecture--security)
+  - [🛠️ Build from Source](#️-build-from-source)
+  - [⚙️ Configuration & Environment Variables](#️-configuration--environment-variables)
+  - [🚀 Deployment Methods](#-deployment-methods)
+  - [🔑 Dynamic Multi-Key Management API](#-dynamic-multi-key-management-api)
+  - [📱 Client Integration](#-client-integration)
   - [🛡️ Health Checks & Observability](#️-health-checks--observability)
+  - [🗂️ Repository Layout](#️-repository-layout)
+  - [📦 Versioning & Release Pipeline](#-versioning--release-pipeline)
   - [❓ Frequently Asked Questions (FAQ)](#-frequently-asked-questions-faq)
+- [🤝 参与贡献 / Contributing](#-参与贡献--contributing)
 - [📄 License](#-license)
 
 ---
@@ -38,87 +56,223 @@
 <a name="中文说明"></a>
 ## 🇨🇳 中文说明
 
-### 📖 项目简介与解决痛点
+### 📖 项目简介
 
-**Antigravity Gateway** 是一款专为 **OpenAI Chat Completions 协议** 设计的高性能、无 UI（Headless）、环境变量与 `.env` 配置文件优先的防截断与格式修复中间件网关。
+**Antigravity Gateway for Android**（包名 `com.antigravity.gateway`）是专为 Android 平台定制的极简本地 OpenAI Chat Completions 防截断代理网关。
 
-在重度提示词环境（例如 **SillyTavern 酒馆复杂预设、超长角色卡、Prompt Pre-fill 续写、工具调用协同**）下，主流大模型（Claude、Gemini、GPT 等）经常出现以下问题：
-1. **输出意外截断**：长文本生成时受限于普通补全通道的输出长度限制或安全过滤器，导致生成中途断崖式截断；
-2. **上游协议报错 (HTTP 400)**：如使用 Gemini / CPA 上游时，客户端包含 Assistant 预填或以非标准轮次收尾，触发 `Requests ending with a model turn are not supported.` 报错；
-3. **格式坍塌与未闭合语法**：JSON/Markdown 代码块未闭合、遗漏引号、末尾悬空逗号，导致下游客户端解析崩溃；
-4. **工具调用冲突**：在注入控制协议时污染了客户端自身的实际工具定义（如联网搜索、文件读取等）。
-
-本网关通过**动态合成高熵工具协议（Synthetic Transport Tool）**、**流式增量 UTF-8/JSON 状态机**与**智能对话轮次自适应修复**，在完全不侵入客户端与上游原生模型 ID 的前提下，彻底解决上述痛点。
+移动端通过 JNI 内嵌编译好的 Go 原生核心动态库（`libantigravity.so`），无需依赖任何云端中转或外部服务器，直接在 Android 手机/平板/车机/模拟器本地启动防截断网关，彻底解决 **SillyTavern 酒馆、Cherry Studio、NextChat** 等客户端在移动设备上游玩时的回答截断、Gemini/CPA 轮次 400 报错及未闭合 Markdown/JSON 代码块问题。
 
 ---
 
-### 🌟 核心工作原理与特性
+### 🚀 五分钟快速开始
 
-1. **防截断合成传输协议 (Synthetic Transport Tool)**：
-   - 为每个请求动态生成高熵（96-bit 随机 Nonce）的传输工具（如 `agw_emit_7f3a91c8d42e6b1a9c02a547`）。
-   - 引导模型将最终可见回答放入该工具参数中输出，利用底层 Function Call 通道突破普通文本补全的长度截断限制。
-   - 网关接收后在流式/非流式层即时解构，还原为干净的标准 `assistant.content`，对下游客户端完全透明。
-2. **模型 ID 零映射原生透传**：
-   - 客户端传入的任何模型 ID（如 `gemini-3.5-flash-low`、`gemini-3.7-flash-high`、`claude-sonnet-4-6` 等）直接逐字转发给上游，不建立别名，不污染 ID。
-3. **真实工具定义（Genuine Tools）完全保真**：
-   - 客户端自身携带的 Tools（如 Web Search、代码执行等）会被原样保留，模型生成的真实工具调用不被吞噬、不被篡改。
-4. **空 Assistant 内容强约束与绝对防拼接**：
-   - 严格杜绝合成协议回答与普通正文发生拼接，保证单一事实来源，消除混淆输出。
-5. **极速增量流式 (SSE) 状态机**：
-   - 逐字节增量解析 UTF-8 与 JSON 转义序列，已验证的合法字符即刻 Flush 下发，首字几乎零附加延迟。
-6. **确定性有界格式修复与空回自动重试**：
-   - 针对可能产生的 Markdown 围栏、未闭合引号、尾逗号提供确定性本地修复。
-   - 上游发生空回（完全没有任何输出）时，自动触发重试（默认 3 次）。
-7. **智能模型过滤分类**：
-   - 自动识别文本/对话模型并启用防截断保护；对于图像生成、语音、嵌入（Embedding）等非文本模型，自动执行原生纯透明透传。
-8. **对话轮次自适应修复 (Gemini 兼容)**：
-   - 智能识别上下文末尾。若末尾仅包含 `assistant` 预填或 `system` 规则，网关自动在末尾自适应收口为 `user` 轮次，彻底解决 Gemini/CPA 上游 400 报错。
-9. **高并发无锁热路径与动态 Key 数据库**：
-   - 基于不可变内存快照与原子指针，鉴权与路由全程无锁，轻松支撑数千 QPS 高并发；内置 SQLite 支撑动态多 Key 管理。
-10. **原生 `.env` 自动加载与 Windows 友好**：
-    - 程序启动自动加载当前目录或程序所在目录下的 `.env` 文件，自动剥离 Windows 记事本 UTF-8 BOM，开箱即用。
+#### 场景 A：Android 用户（推荐普通用户）
 
----
+1. 打开 [Releases](https://github.com/Xeltra233/Antigravity-gateway/releases/latest)，下载 `antigravity-gateway-v<版本>.apk`（当前为 `v1.0.14-wonghak二改`）。
+2. 在手机上安装 APK（首次安装需允许「安装未知来源应用」）。
+3. 打开应用 → 点击「切换/新建」填写上游供应商：
+   - **上游地址**：如 `https://api.openai.com/v1`（或任何兼容 Chat Completions 的服务）
+   - **上游 Key**：你的上游 API Key
+4. 回到主界面点击「启动网关」，等待状态变为「网关运行中」。
+5. 复制界面上的 **访问地址**（形如 `http://192.168.x.x:38472/v1`）与 **访问 Key**（`sk-agw-...`）填入客户端。
+6. 用界面上的「拉取模型」/「消息测试」按钮确认端到端可用，然后在客户端里正常对话。
 
-### 📥 获取与运行方式（按你的环境选择）
+> 密钥只保存在本机（Android Keystore 加密），不上传任何第三方服务器；上游请求由手机直接发出。
 
-本程序是使用 Go 编写的**纯静态单文件独立可执行程序**（所有依赖均已打包在单个二进制文件中）。
+#### 场景 B：服务端部署（Linux / Windows / macOS）
 
-> 💡 **如果没有安装 Go 语言环境？**
-> 你**完全不需要安装 Go**！可直接按 **【方案 A：使用预编译单文件/安卓客户端】** 或 **【方案 B：Docker 容器运行】** 极速上手。
-
----
-
-#### 方案 A：直接使用预编译可执行文件或安卓 APK（免安装 Go，推荐小白/快速部署）
-1. 在 [GitHub Releases 发布页面](https://github.com/Xeltra233/Antigravity-gateway/releases) 下载对应系统的打包文件：
-   - **Windows (x64)**: 下载 `antigravity-gateway_windows_amd64.zip`（解压得到 `gateway.exe`、`run.bat` 与 `.env.example`）
-   - **Windows (ARM64)**: 下载 `antigravity-gateway_windows_arm64.zip`
-   - **Linux (x64)**: 下载 `antigravity-gateway_linux_amd64.tar.gz`
-   - **Linux (ARM64)**: 下载 `antigravity-gateway_linux_arm64.tar.gz`
-   - **macOS (Apple Silicon M系列)**: 下载 `antigravity-gateway_darwin_arm64.tar.gz`
-   - **macOS (Intel)**: 下载 `antigravity-gateway_darwin_amd64.tar.gz`
-   - **Android 手机/平板**: 下载 `antigravity-gateway-v*.apk` 直接安装，随时随地在手机本地运行网关！
-2. 解压到任意目录，复制 `.env.example` 为 `.env` 并填入您的上游地址即可直接运行（Windows 双击 `run.bat`，Linux/macOS 执行 `./gateway`）。
-
----
-
-#### 方案 B：使用 Docker 容器（免安装 Go）
-只要你的机器安装了 Docker，无需安装 Go，直接利用内置 Dockerfile 构建或运行：
 ```bash
-# 1. 克隆代码库
-git clone https://github.com/Xeltra233/Antigravity-gateway.git
-cd Antigravity-gateway
+# 1. 获取二进制（Release 页面按平台下载），或从源码编译
+go build -o antigravity-gateway ./cmd/gateway
 
-# 2. 构建并启动容器
-docker build -t antigravity-gateway:latest .
-docker run -d \
-  --name antigravity-gateway \
-  -p 8080:8080 \
-  -e UPSTREAM_BASE_URL="https://your-upstream-url.com" \
-  -e UPSTREAM_API_KEY="sk-your-upstream-key" \
-  -e API_KEY="sk-antigravity-123456" \
-  --restart unless-stopped \
-  antigravity-gateway:latest
+# 2. 配置最小可用环境变量
+export UPSTREAM_BASE_URL="https://api.openai.com/v1"
+export UPSTREAM_API_KEY="<你的上游 Key>"
+export GATEWAY_API_KEY="sk-agw-local"      # 下游客户端填写这个
+
+# 3. 启动
+./antigravity-gateway --port 38472
+
+# 4. 验证
+curl http://127.0.0.1:38472/healthz
+curl http://127.0.0.1:38472/v1/models -H "Authorization: Bearer sk-agw-local"
+```
+
+完整变量说明见 [配置详解与环境变量](#️-配置详解与环境变量)，多用户动态 Key 见 [多用户动态 Key 管理 API](#-多用户动态-key-管理-api)。
+
+---
+
+### 🌟 核心特性
+9. **三态主题切换**：右上角一键切换「浅色 / 深色 / 跟随系统」，深色模式使用独立配色方案（背景 #121212、卡片 #1E1E1E、正文 #ECECEC），夜间自动跟随系统设置。
+10. **崩溃自诊断链路**：未捕获异常自动落盘（应用私有目录 + `Android/data` 外部目录 + Android 11+ 公共下载目录），内置查看 / 复制 / 分享 / 清除，并提供连续启动失败自动进入的安全模式。
+
+1. **极简单屏交互**：
+   - 专为移动端设计的单屏 Material Design 界面，无繁琐层级，所有关键信息与操作一屏触达。
+2. **多供应商独立管理**：
+   - 支持多套上游供应商配置自由切换与新建；
+   - 支持通过卡片右侧 ✏️ 编辑图标或长按供应商名称直接重命名；
+   - 具备最后一个供应商删除保护机制，防止误删配置。
+3. **全局独立下游 Key**：
+   - 首次启动自动生成高熵 `sk-agw-...` 密钥，独立于各个供应商；
+   - 切换或修改供应商完全不影响下游客户端配置；
+   - 支持重新生成并一键复制到剪贴板，支持明文/密文切换查看。
+4. **系统级 Keystore 硬件加密**：
+   - 所有上游 API Key 与全局下游 Key 均采用 **Android Keystore AES-GCM** 加密后持久化存储；
+   - 绝不向外部存储、明文 SharedPreferences 或系统日志泄露密钥。
+5. **固定冷门端口与局域网应用链接**：
+   - 进程绑定监听冷门固定端口 `38472`（`HOST=0.0.0.0`）；
+   - 界面自动识别并显示本机局域网 IP 与应用链接（`http://<IP>:38472/v1`），支持一键复制到酒馆或客户端中。
+6. **前台服务后台保活 & 划走停机**：
+   - 启动网关后自动挂载常驻前台服务通知，退至后台、息屏或切换 App 时代理服务不中断；
+   - 在系统多任务卡片中划走应用或在界面点击「停止」时，网关优雅退出并释放端口占用。
+7. **内置直连验证客户端**：
+   - 界面内置「拉取模型」（`GET /v1/models`）与「消息测试」（`POST /v1/chat/completions`）功能；
+   - 拉取成功后自动回填首个可用模型 ID，点击即可完成端到端收发连通性测试。
+8. **全 CPU 架构 ABI 适配**：
+   - 预编译打包全部 4 种 Android ABI：`arm64-v8a`、`x86_64`、`armeabi-v7a`、`x86`。
+
+---
+
+### 🧭 兼容性矩阵
+
+| 维度 | 支持范围 | 说明 |
+| --- | --- | --- |
+| Android 版本 | **8.0 (API 26) ~ 15** | `minSdk 26`、`targetSdk 34`，已验证 API 28 真机级模拟器与 API 34 编译链 |
+| CPU 架构 | `arm64-v8a` / `x86_64` / `armeabi-v7a` / `x86` | APK 内置全部 4 种 ABI 的 `libantigravity.so`，模拟器与真机通用 |
+| 界面主题 | 浅色 / 深色 / 跟随系统 | 右上角开关一键切换，深色模式为独立配色（非简单反色） |
+| 崩溃日志目录 | 应用私有目录 + `Android/data/<包名>/files/crash-logs`（≤ Android 10 可浏览） + `下载/AntigravityGateway/`（Android 11+） | 详见 [崩溃诊断与安全模式](#-崩溃诊断与安全模式) |
+| 服务端二进制 | Linux（amd64/arm64）、Windows（amd64）、macOS（amd64/arm64） | Release 页面按平台发布，版本号与 APK 同步 |
+| 上游协议 | OpenAI Chat Completions（`/v1/models`、`/v1/chat/completions`） | 兼容 OpenAI、DeepSeek、Gemini 兼容层、CPA、各类中转 |
+| 下游客户端 | SillyTavern、Cherry Studio、NextChat、OpenAI SDK | 只需自定义 Base URL + Bearer Key |
+
+---
+
+### 📱 界面与功能使用
+
+#### 1. 配置供应商
+- 点击「切换/新建」添加新供应商或切换已有供应商；
+- 点击供应商名称右侧的 ✏️ 图标或长按名称可重命名当前供应商；
+- 填入对应供应商的 **上游 URL** 与 **上游 Key**。
+
+#### 2. 配置下游与启动
+- 在「全局下游 Key」区域点击「生成」生成专属 Key，或点击「复制」将其填入客户端；
+- 点击蓝色 **「启动」** 按钮，状态变为「停止」且通知栏显示前台保活服务，应用链接高亮显示；
+- 复制界面展示的 **应用链接**（例如 `http://192.168.1.100:38472/v1`）填入客户端的 Base URL。
+
+#### 3. 客户端接入示例 (SillyTavern / Cherry Studio)
+- **API 类型**: `OpenAI / Chat Completions`
+- **Base URL / 自定义端点**: `http://<手机IP>:38472/v1`（同设备运行填 `http://127.0.0.1:38472/v1`）
+- **API Key**: 填入应用内复制的全局下游 Key（如 `sk-agw-...`）
+- **模型**: 选择或输入上游原生模型名称（如 `gemini-3.5-flash-low`, `claude-sonnet-4-6` 等）
+
+---
+
+### 🩺 崩溃诊断与安全模式
+
+手机厂商定制系统（MIUI / HyperOS / EMUI 等）偶发「点开就闪退」，而普通用户拿不到日志。为此应用内置了完整的自诊断链路：
+
+#### 1. 崩溃日志的三个位置
+
+应用在崩溃发生的瞬间会把同一份报告写入多个位置，确保任何系统版本都能取到：
+
+| 位置 | 路径 | 适用场景 |
+| --- | --- | --- |
+| 应用私有目录 | `/data/data/com.antigravity.gateway/files/crash-logs/` | 应用内「查看崩溃日志」读取；需 root/`run-as` 才能在电脑上直接取 |
+| 应用外部目录 | `/sdcard/Android/data/com.antigravity.gateway/files/crash-logs/` | **Android 10 及以下**：文件管理器 / USB / `adb pull` 直接可读 |
+| 公共下载目录 | `/sdcard/Download/AntigravityGateway/` | **Android 11 及以上**：系统文件管理器、微信、QQ 都能直接打开（通过 MediaStore 写入，无需存储权限） |
+
+报告内容包含时间、应用版本、设备型号、Android 版本、ABI、线程名与完整堆栈；每个位置最多保留最新 5 份，自动清理旧文件。
+
+#### 2. 应用内查看 / 分享 / 清除
+
+主界面底部「查看崩溃日志」按钮（有日志时才显示，带条数）：
+
+- **查看**：弹窗展示最新一份报告的完整内容与上述路径提示；
+- **复制**：一键复制全文，便于粘贴到聊天窗口；
+- **分享**：调起系统分享面板，直接发到微信 / 邮件 / 任意应用；
+- **清除**：同时删除上述三处目录中的全部报告。
+
+#### 3. 安全模式（连续启动失败保护）
+
+应用每次启动都会记账：若连续 **3 次**启动都没能进入正常界面（例如主题初始化或某个可选组件在特定 ROM 上抛异常），下次启动会自动进入 **安全模式**：
+
+- 跳过主题、可选初始化等非必要逻辑，只保证界面能起来；
+- 顶部显示「安全模式：检测到连续 N 次启动未成功…」提示条，并强制显示崩溃日志入口；
+- 界面成功显示后计数自动清零，安全模式在下次正常启动时自动退出。
+
+这样即使遇到厂商 ROM 的兼容性问题，用户也能自己把日志发给开发者定位，而不是面对一个「打开就消失」的应用。
+
+#### 4. 手动抓取日志（进阶）
+
+```bash
+# 实时观察崩溃记录（需开启 USB 调试）
+adb logcat -s CrashReporter:I AndroidRuntime:E
+
+# 拉取公共下载目录中的报告（Android 11+ 同样可用）
+adb pull /sdcard/Download/AntigravityGateway/ ./crash-logs/
+
+# Android 10 及以下还可以拉取应用外部目录
+adb pull /sdcard/Android/data/com.antigravity.gateway/files/crash-logs/ ./crash-logs/
+```
+
+---
+
+### ⚙️ 技术架构与安全性
+
+```
+┌────────────────────────────────────────────────────────┐
+│                   Android Application                  │
+│  ┌───────────────────────┐  ┌───────────────────────┐  │
+│  │   UI (Material 3)     │  │  GatewayService       │  │
+│  │   MainActivity / VM   │  │  Foreground KeepAlive │  │
+│  └───────────┬───────────┘  └───────────┬───────────┘  │
+│              │                          │              │
+│  ┌───────────▼───────────┐              │              │
+│  │   ConfigRepository    │              │              │
+│  │   Keystore AES-GCM    │              │              │
+│  └───────────────────────┘              │              │
+│                                         │              │
+│  ┌──────────────────────────────────────▼───────────┐  │
+│  │ JNI Bridge (com.antigravity.gateway.bridge)      │  │
+│  └──────────────────────┬───────────────────────────┘  │
+└─────────────────────────┼──────────────────────────────┘
+                          │ CGO / JNI
+┌─────────────────────────▼──────────────────────────────┐
+│  Go Native Core (libantigravity.so)                    │
+│  • Synthetic Transport Tool Engine                     │
+│  • Incremental SSE State Machine                       │
+│  • Chat Turn Sanitizer & Bounded Repair                │
+│  • Embedded SQLite (:memory:)                          │
+│  • Listening on 0.0.0.0:38472                          │
+└────────────────────────────────────────────────────────┘
+```
+
+- **数据安全**：所有配置采用系统级 Hardware-backed Keystore 提供的 AES-GCM-256 算法加密存储于应用内部隔离空间。
+- **内存数据库**：Android 运行时将 Key 鉴权 SQLite 数据库配置为 `:memory:` 纯内存模式，杜绝文件系统持久化明文残留与权限异常。
+
+---
+
+### 🛠️ 本地编译与构建
+
+#### 环境要求
+- JDK 17+
+- Android SDK (API 34, Build-Tools 34.0.0)
+- NDK (26.3.11579264 或兼容版本)
+- Go 1.24+ (如需重新交叉编译 JNI `.so` 库)
+
+#### 构建步骤
+```bash
+# 1. 进入 Android 项目目录
+cd android
+
+# 2. 运行单元测试
+./gradlew :app:testReleaseUnitTest
+
+# 3. 构建 Release APK
+./gradlew :app:assembleRelease
+
+# 产物输出路径:
+# android/app/build/outputs/apk/release/antigravity-gateway-v1.0.14-wonghak二改.apk
 ```
 
 ---
@@ -158,7 +312,7 @@ cd Antigravity-gateway
 - **查看版本信息**:
   ```bash
   ./gateway -v
-  # 输出: Antigravity Gateway version 1.0.7 (commit: ..., built: ...)
+  # 输出: Antigravity Gateway version 1.0.14-wonghak二改 (commit: ..., built: ...)
   ```
 
 - **跨平台交叉编译 (在一台机器上为其他系统编译)**:
@@ -169,7 +323,6 @@ cd Antigravity-gateway
   # 编译 Windows 运行的 EXE 文件
   CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o gateway.exe ./cmd/gateway
   ```
-
 ---
 
 ### ⚙️ 配置详解与环境变量
@@ -193,11 +346,14 @@ cd Antigravity-gateway
 | `UPSTREAM_TIMEOUT_MS` | 否 | `120000` | 上游请求单次超时时间（毫秒，默认 2 分钟） |
 | `PORT` | 否 | `8080` | 网关本地监听端口 |
 | `HOST` | 否 | `0.0.0.0` | 网关监听网络地址 |
-| `API_KEY` | 否 | - | 下游客户端简易访问 Key；也可通过 `DOWNSTREAM_KEYS_JSON` 配置多个 Key。`/v1/*` 始终要求有效 Bearer Key，未配置任何下游 Key 时不会自动变为免认证模式。 |
+| `API_KEY` | 视情况 | - | 下游客户端简易访问 Key（**推荐配置**）。与 `DOWNSTREAM_KEYS_JSON` 二选一，网关 `/v1/*` 接口强制要求有效 Bearer Key。 |
 | `ENV_FILE` | 否 | - | 自定义指定加载的 `.env` 配置文件路径 |
 | `WRAPPER_MODE` | 否 | `prefer` | 包装模式：`prefer`（推荐，自适应注入合成协议）、`required`（强制要求）、`off`（紧急透明透传回滚） |
 | `RECOVERY_POLICY` | 否 | `repair` | 格式恢复策略：`repair`（本地确定性修复）、`repair_then_retry`（单次安全重试）、`fail`（直接报错） |
 | `UPSTREAM_EMPTY_RETRIES` | 否 | `3` | 上游空回（完全没有任何输出）时的自动重试次数 |
+| `NATIVE_STREAM` | 否 | `false` | 原生流式传输（Preview）：开启后可翻译的纯文本流式请求改用上游原生 `streamGenerateContent` + `streamFunctionCallArguments`，上游每产生一段 `partialArgs` 网关立即还原为 `delta.content` 发送，不再等工具参数完整后一次性返回。适用于上游支持 Vertex/Gemini 原生协议（aiplatform.googleapis.com / generativelanguage.googleapis.com）的场景；响应头 `x-anti-truncation-transport: tool-transport-native-streaming` 标识生效。**上游仅支持 OpenAI 兼容接口时请勿开启**：此时会返回明确的 502 错误（`native_upstream_not_sse`）并附带排查提示，不会静默失败 |
+| `NATIVE_STREAM_URL_TEMPLATE` | 否 | 从 `UPSTREAM_BASE_URL` 推导 | 原生流式地址模板，`{model}` 占位符自动替换为模型名（去除 `google/` 前缀）。默认为 Vertex publishers 路径（先去除基址的 `/endpoints/openapi` 后缀）；Gemini Developer API 示例：`https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse` |
+| `NATIVE_STREAM_AUTH_STYLE` | 否 | `bearer` | 原生接口鉴权：`bearer`（`Authorization: Bearer <UPSTREAM_API_KEY>`）或 `goog`（`x-goog-api-key: <UPSTREAM_API_KEY>`） |
 | `CONTROL_MESSAGE_ROLE` | 否 | `system` | 控制提示词角色：`system` 或 `developer` |
 | `CONTROL_MESSAGE_POSITION`| 否 | `tail` | 控制提示词注入位置：`tail`（末尾强生效）、`head`、`system_tail` |
 | `SYNTHETIC_TOOL_PREFIX` | 否 | `agw_emit_` | 动态合成工具的前缀（用于生成 96-bit 随机工具名） |
@@ -230,7 +386,7 @@ cd Antigravity-gateway
 UPSTREAM_BASE_URL=https://api.openai.com
 UPSTREAM_API_KEY=sk-your-upstream-key-here
 
-# 可选：给下游客户端配置的简易访问 Key 与端口
+# [推荐] 下游客户端连接网关所使用的简易访问 Key (酒馆/客户端填写此 Key)
 API_KEY=sk-antigravity-123456
 PORT=8080
 HOST=0.0.0.0
@@ -419,10 +575,54 @@ curl -X POST http://127.0.0.1:8080/admin/keys/key_7f8a91b2c3d4/revoke \
 
 ### 🛡️ 运维监控与健康检查
 
-- **存活探针 (Liveness)**: `GET /healthz` → 返回 `{"status":"ok","version":"1.0.7"}` (200 OK)
-- **就绪探针 (Readiness)**: `GET /readyz` → 返回 `{"status":"ready","version":"1.0.7"}` (200 OK)
+- **存活探针 (Liveness)**: `GET /healthz` → 返回 `{"status":"ok","version":"1.0.14-wonghak二改"}` (200 OK)
+- **就绪探针 (Readiness)**: `GET /readyz` → 返回 `{"status":"ready","version":"1.0.14-wonghak二改"}` (200 OK)
 - **Prometheus 监控指标**: `GET /metrics` → 输出请求总量、活跃请求数、过载拒绝、合成包装命中/修复/重试/冲突等指标。
 - **紧急回滚**: 若遇到突发未知上游格式异常，修改 `.env` 中的 `WRAPPER_MODE=off` 并重启网关，即可切换为原生纯透传模式。
+
+---
+
+### 🗂️ 项目结构
+
+```text
+Antigravity-gateway/
+├── cmd/
+│   ├── gateway/          # 服务端入口（CLI，多平台二进制）
+│   ├── androidbridge/    # JNI 桥接层（编译为 libantigravity.so）
+│   └── live_test/        # 端到端联调客户端
+├── internal/             # 防截断核心：请求改写、流式拼接、重试与熔断
+├── pkg/                  # 可复用库：上游适配、日志、配置加载
+├── android/              # Android 工程（Kotlin + Gradle）
+│   └── app/src/main/java/com/antigravity/gateway/
+│       ├── GatewayApplication.kt   # 启动流程（主题、崩溃采集、安全模式）
+│       ├── bridge/                 # JNI 调用封装（Go 核心）
+│       ├── data/                   # 配置模型、Keystore 加密、主题偏好
+│       ├── net/                    # 网关自检客户端（拉取模型 / 消息测试）
+│       ├── service/                # 前台服务（后台保活）
+│       ├── ui/                     # 单屏主界面（Activity / ViewModel）
+│       └── util/                   # 崩溃日志采集、网络工具
+├── .github/workflows/    # CI：Android 构建 + 多平台 Release 发布
+└── Dockerfile            # 服务端容器化部署
+```
+
+### 📦 版本与发布流程
+
+- **版本号**同时写入 4 处并保持一致：`android/app/build.gradle.kts`（`versionCode`/`versionName`）、`cmd/gateway/main.go`、`internal/*/engine.go`、本 README。
+- 推送形如 `v1.0.14-wonghak二改` 的 **标签** 即触发 `.github/workflows/release.yml`：
+  1. 编译 Android APK（debug/release 双构建 + 单元测试 + lint）；
+  2. 交叉编译 6 个服务端二进制（Linux/Windows/macOS × amd64/arm64）；
+  3. 通过 `ldflags -X main.Version=<tag>` 把版本号与 commit SHA 注入二进制；
+  4. 上传全部产物 + `checksums.txt`（SHA-256）到 GitHub Release。
+- **校验发布产物**：
+
+```bash
+gh release view v1.0.14-wonghak二改                                   # 资产列表
+sha256sum -c checksums.txt                                # 校验下载文件
+antigravity-gateway --version                             # v1.0.14-wonghak二改 (commit: ...)
+aapt2 dump badging antigravity-gateway-v1.0.14-wonghak二改.apk | head -1   # APK 版本
+```
+
+- **升级约定**：已发布版本不再修改；每个变更批次递增补丁号并重新走完整验证（单元测试 → 真机/模拟器用例 → 发布校验）。
 
 ---
 
@@ -451,86 +651,142 @@ curl -X POST http://127.0.0.1:8080/admin/keys/key_7f8a91b2c3d4/revoke \
 <a name="english"></a>
 ## 🇬🇧 English Documentation
 
-### Overview & Problems Solved
+### Overview
 
-**Antigravity Gateway** is a high-performance, headless, environment-variable & `.env`-configured OpenAI Chat Completions compatibility middleware.
+**Antigravity Gateway for Android** (`com.antigravity.gateway`) is a standalone, lightweight Android application delivering an embedded OpenAI Chat Completions anti-truncation proxy gateway.
 
-In complex, heavy-prompt environments (such as **SillyTavern complex presets, massive character cards, prompt pre-fills, and multi-turn workflows**), mainstream LLMs (Claude, Gemini, GPT) frequently encounter:
-1. **Premature Output Truncation**: Standard chat completion channels truncate unexpectedly due to token limits or output length restrictions;
-2. **Upstream Protocol Errors (HTTP 400)**: Upstreams like Google Gemini or CPA reject requests with trailing Assistant pre-fills with `Requests ending with a model turn are not supported.`;
-3. **Format Collapses**: Broken JSON, unclosed quotes, or incomplete markdown fences breaking downstream UI parsers;
-4. **Tool Collision**: System control prompts clobbering client-side tool definitions (Web Search, File Readers).
-
-The gateway eliminates these problems through a **Dynamic Synthetic Transport Tool Protocol**, **Instant-Emission SSE Streaming Engine**, and **Adaptive Trailing Turn Normalization** with zero model ID renaming or upstream pollution.
+By embedding the high-performance Go native core (`libantigravity.so`) via JNI, the app acts as a local proxy on your Android phone, tablet, emulator, or head unit. It completely resolves truncation, missing code block enclosures, and Gemini/CPA trailing turn 400 errors for clients such as **SillyTavern, Cherry Studio, and NextChat**.
 
 ---
 
-### 🌟 Key Architecture & Features
+### 🚀 Quick Start
 
-1. **Synthetic Transport Tool Protocol**:
-   - Generates a unique, high-entropy transport tool per request (e.g., `agw_emit_7f3a91c8d42e6b1a9c02a547`).
-   - Instructs the model to emit its complete response via Function Call arguments, bypassing completion token truncation.
-   - Transparently extracts and reconstructs the payload into standard `assistant.content`.
-2. **Zero-Mapping Model ID Passthrough**:
-   - Model IDs (such as `gemini-3.5-flash-low`, `gemini-3.7-flash-high`, `claude-sonnet-4-6`) are forwarded verbatim without artificial aliases.
-3. **Genuine Tool Preservation**:
-   - Preserves client tools (web search, python interpreters, etc.) without interference.
-4. **No Standard Content Concatenation**:
-   - Discards accidental standard preambles when synthetic tool emission succeeds, enforcing a single source of truth.
-5. **Instant-Emission SSE Streaming (Low Latency)**:
-   - Byte-level incremental UTF-8 and JSON escape state machine flushes validated chunks immediately, adding near-zero latency.
-6. **Bounded Deterministic Repair & Empty Retries**:
-   - Safely repairs trailing markdown fences, dangling quotes, and invalid syntax.
-   - Automatically retries upstream when an empty response is received (default: 3 retries).
-7. **Intelligent Model Classification**:
-   - Transparently bypasses synthetic wrapping for vision, audio, diffusion, and embedding models.
-8. **Adaptive Trailing Turn Normalization**:
-   - Sanitizes trailing assistant turns into user turns, ensuring 100% compliance with Gemini/CPA requirements.
-9. **Lock-Free Hot Path & Dynamic SQLite Key Store**:
-   - Atomic pointer swaps and immutable memory snapshots for authentication and routing, effortlessly supporting thousands of QPS.
-10. **Native `.env` File Loading & Windows Friendly**:
-    - Automatically finds and parses `.env` in working directory or binary directory, gracefully stripping UTF-8 BOM.
+#### Option A — Android (end users)
 
----
+1. Download `antigravity-gateway-v<version>.apk` (currently `v1.0.14-wonghak二改`) from [Releases](https://github.com/Xeltra233/Antigravity-gateway/releases/latest).
+2. Install it (allow "install from unknown sources" the first time).
+3. Open the app → tap **切换/新建** to add an upstream provider: base URL (e.g. `https://api.openai.com/v1`) and your upstream API key.
+4. Tap **启动网关** and wait for the status card to show **网关运行中**.
+5. Copy the displayed endpoint (`http://192.168.x.x:38472/v1`) and access key (`sk-agw-...`) into your client.
+6. Verify with the built-in **拉取模型 / 消息测试** buttons, then chat normally.
 
-### 📥 Installation & Getting Started
+> Keys stay on the device (encrypted with Android Keystore); requests go straight from the phone to your upstream.
 
-Antigravity Gateway is distributed as a **statically linked, standalone single binary** with zero external runtime dependencies.
+#### Option B — Server deployment (Linux / Windows / macOS)
 
-> 💡 **No Go Environment Installed?**
-> You **do not need Go installed**! Choose **[Option A: Prebuilt Binary / Android APK]** or **[Option B: Docker Container]** to get started immediately.
-
----
-
-#### Option A: Prebuilt Standalone Binary or Android APK (Recommended / No Go Needed)
-1. Download the archive for your operating system from [GitHub Releases](https://github.com/Xeltra233/Antigravity-gateway/releases):
-   - **Windows (x64)**: `antigravity-gateway_windows_amd64.zip` (includes `gateway.exe`, `run.bat`, and `.env.example`)
-   - **Windows (ARM64)**: `antigravity-gateway_windows_arm64.zip`
-   - **Linux (x64)**: `antigravity-gateway_linux_amd64.tar.gz`
-   - **Linux (ARM64)**: `antigravity-gateway_linux_arm64.tar.gz`
-   - **macOS (Apple Silicon M-Series)**: `antigravity-gateway_darwin_arm64.tar.gz`
-   - **macOS (Intel)**: `antigravity-gateway_darwin_amd64.tar.gz`
-   - **Android Devices**: `antigravity-gateway-v*.apk` (install and run locally on your phone/tablet!)
-2. Extract the archive, copy `.env.example` to `.env`, edit your upstream URL, and run (`run.bat` on Windows, `./gateway` on Linux/macOS).
-
----
-
-#### Option B: Docker Container (No Go Needed)
 ```bash
-# 1. Clone repository
-git clone https://github.com/Xeltra233/Antigravity-gateway.git
-cd Antigravity-gateway
+go build -o antigravity-gateway ./cmd/gateway
 
-# 2. Build and run container
-docker build -t antigravity-gateway:latest .
-docker run -d \
-  --name antigravity-gateway \
-  -p 8080:8080 \
-  -e UPSTREAM_BASE_URL="https://your-upstream-url.com" \
-  -e UPSTREAM_API_KEY="sk-your-upstream-key" \
-  -e API_KEY="sk-antigravity-123456" \
-  --restart unless-stopped \
-  antigravity-gateway:latest
+export UPSTREAM_BASE_URL="https://api.openai.com/v1"
+export UPSTREAM_API_KEY="<your upstream key>"
+export GATEWAY_API_KEY="sk-agw-local"        # what your clients send
+
+./antigravity-gateway --port 38472
+
+curl http://127.0.0.1:38472/healthz
+curl http://127.0.0.1:38472/v1/models -H "Authorization: Bearer sk-agw-local"
+```
+
+See [Configuration & Environment Variables](#️-configuration--environment-variables) and [Dynamic Multi-Key Management API](#-dynamic-multi-key-management-api) for the full surface.
+
+---
+
+### 🧭 Compatibility Matrix
+
+| Dimension | Supported | Notes |
+| --- | --- | --- |
+| Android | **8.0 (API 26) – 15** | `minSdk 26`, `targetSdk 34`; API 28 emulator verified for runtime behaviour |
+| ABIs | `arm64-v8a`, `x86_64`, `armeabi-v7a`, `x86` | All four `libantigravity.so` variants ship inside the APK |
+| Theme | Light / Dark / Follow system | Top-right switcher; dark mode uses a dedicated palette, not an inverted one |
+| Crash reports | Private dir + `Android/data/<pkg>/files/crash-logs` (≤ Android 10) + `Download/AntigravityGateway/` (Android 11+) | See [Crash Reports & Safe Mode](#-crash-reports--safe-mode) |
+| Binaries | Linux (amd64/arm64), Windows (amd64), macOS (amd64/arm64) | Published per release, versioned in lockstep with the APK |
+| Upstream | OpenAI Chat Completions (`/v1/models`, `/v1/chat/completions`) | Works with OpenAI, DeepSeek, Gemini-compatible layers, CPA, self-hosted relays |
+| Clients | SillyTavern, Cherry Studio, NextChat, OpenAI SDKs | Custom base URL + bearer key only |
+
+---
+
+### 🌟 Key Features
+9. **Light / Dark / System Theme**: one-tap switcher in the top bar; dark mode uses a dedicated palette (background #121212, surface #1E1E1E, text #ECECEC) instead of an inverted one.
+10. **Self-Diagnosing Crash Pipeline**: uncaught exceptions are persisted automatically (private dir + app-external dir + public Downloads on Android 11+), with in-app view / copy / share / clear and a safe mode for repeated startup failures.
+
+1. **Minimal Single-Screen UI**: Clean Material interface designed specifically for mobile devices.
+2. **Multi-Provider Switcher & Rename**: Add, switch, and rename providers (via ✏️ icon or long-press) with deletion safety for the default provider.
+3. **Global Downstream Key**: Auto-generated high-entropy `sk-agw-...` key independent of upstream provider selections.
+4. **Android Keystore AES-GCM Encryption**: Hardware-backed credential encryption preventing sensitive API keys from leaking into logs or storage.
+5. **Fixed Cold Port & LAN Detection**: Fixed cold port `38472` with auto-detected LAN link (`http://<LAN-IP>:38472/v1`).
+6. **Foreground Service Keep-Alive**: Persistent notification keeps the proxy running in the background; swiping the app away from recent tasks automatically shuts down the gateway and frees the port.
+7. **Built-in Verification Client**: In-app `GET /v1/models` and `POST /v1/chat/completions` testing with auto-fill for the first available model.
+8. **Multi-ABI Support**: Packaged with native libraries for `arm64-v8a`, `x86_64`, `armeabi-v7a`, and `x86`.
+
+---
+
+### 📱 UI & Usage Guide
+
+1. **Configure Provider**: Select or add a provider, rename if needed, and enter the upstream URL and Key.
+2. **Downstream Key**: Generate or copy the global downstream key.
+3. **Start Gateway**: Tap **Start**, then copy the displayed App URL (`http://<IP>:38472/v1`).
+4. **Client Setup**: Configure your client (e.g. SillyTavern) with the App URL as Base URL, the Downstream Key as API Key, and your chosen model name.
+
+---
+
+### 🩺 Crash Reports & Safe Mode
+
+OEM ROMs (MIUI / HyperOS / EMUI …) occasionally kill the app right after launch, and a non-technical user has no way to retrieve a log. The app therefore ships a self-diagnostic pipeline.
+
+#### 1. Where reports are written
+
+The same report is written to several locations so that every Android version has at least one reachable copy:
+
+| Location | Path | When it is usable |
+| --- | --- | --- |
+| Private app dir | `/data/data/com.antigravity.gateway/files/crash-logs/` | Read by the in-app viewer; over ADB only with root/`run-as` |
+| App-external dir | `/sdcard/Android/data/com.antigravity.gateway/files/crash-logs/` | **Android 10 and below**: file managers, MTP, `adb pull` |
+| Public Downloads | `/sdcard/Download/AntigravityGateway/` | **Android 11+**: system file manager, chat apps, `adb pull` — written through MediaStore, no storage permission required |
+
+Each report contains timestamp, app version, device model, Android version, ABIs, thread name and the full stack trace. Only the newest 5 files are kept per location; older ones are deleted automatically.
+
+#### 2. In-app view / share / clear
+
+The **查看崩溃日志** button (visible only when reports exist, with a count badge) opens a dialog offering:
+
+- full report text plus the location list above;
+- **复制** — copy the whole report;
+- **分享** — system share sheet (WeChat, mail, anything);
+- **清除** — deletes every report from all three locations.
+
+#### 3. Safe mode
+
+Every launch is counted. If **3 consecutive** launches fail to reach the UI (e.g. a ROM-specific failure during theme setup), the next launch enters **safe mode**:
+
+- theme and other optional initialisation are skipped so the dashboard can always come up;
+- a banner reports "安全模式：检测到连续 N 次启动未成功…" and the crash-log entry is forced visible;
+- the counter resets as soon as the dashboard is shown, so the next normal launch leaves safe mode automatically.
+
+#### 4. Manual capture
+
+```bash
+adb logcat -s CrashReporter:I AndroidRuntime:E              # live crash records
+adb pull /sdcard/Download/AntigravityGateway/ ./crash-logs/  # Android 11+
+adb pull /sdcard/Android/data/com.antigravity.gateway/files/crash-logs/ ./crash-logs/  # Android ≤ 10
+```
+
+---
+
+### ⚙️ Technical Architecture & Security
+
+- **Native JNI Engine**: Core routing, synthetic transport protocol, and streaming state machine execute natively via `libantigravity.so`.
+- **In-Memory SQLite**: The Android bridge initializes SQLite with `:memory:` to ensure no plaintext key residue exists on disk.
+- **Keystore Encryption**: All credentials stored in `ConfigRepository` are encrypted with AES-256-GCM using keys generated inside the Android Keystore.
+
+---
+
+### 🛠️ Build from Source
+
+```bash
+cd android
+./gradlew :app:testReleaseUnitTest
+./gradlew :app:assembleRelease
+# Output APK: android/app/build/outputs/apk/release/antigravity-gateway-v1.0.14-wonghak二改.apk
 ```
 
 ---
@@ -584,7 +840,7 @@ The gateway follows 12-Factor App design principles and reads configuration foll
 | `UPSTREAM_TIMEOUT_MS` | No | `120000` | Upstream request timeout in milliseconds (default: 2 minutes) |
 | `PORT` | No | `8080` | Gateway listening port |
 | `HOST` | No | `0.0.0.0` | Gateway listening host interface |
-| `API_KEY` | No | - | Downstream client authentication key; configure this or at least one valid key in `DOWNSTREAM_KEYS_JSON` |
+| `API_KEY` | Conditional | - | Downstream client access key (**Recommended**). Provide either this or keys in `DOWNSTREAM_KEYS_JSON`; `/v1/*` strictly requires a valid Bearer key. |
 | `ENV_FILE` | No | - | Custom path to load `.env` configuration file from |
 | `WRAPPER_MODE` | No | `prefer` | Wrapper mode: `prefer` (recommended, injects synthetic protocol), `required` (strict), `off` (emergency passthrough) |
 | `RECOVERY_POLICY` | No | `repair` | Recovery policy: `repair` (local deterministic fix), `repair_then_retry` (retry on failure), `fail` (error out) |
@@ -621,7 +877,7 @@ The gateway follows 12-Factor App design principles and reads configuration foll
 UPSTREAM_BASE_URL=https://api.openai.com
 UPSTREAM_API_KEY=sk-your-upstream-key-here
 
-# Optional: Downstream client authentication key and port
+# Recommended: Downstream client access key (Input this into SillyTavern / client)
 API_KEY=sk-antigravity-123456
 PORT=8080
 HOST=0.0.0.0
@@ -795,10 +1051,54 @@ The gateway is 100% compliant with standard OpenAI `/v1` endpoints.
 
 ### 🛡️ Health Checks & Observability
 
-- **Liveness Probe**: `GET /healthz` → returns `{"status":"ok","version":"1.0.7"}` (200 OK)
-- **Readiness Probe**: `GET /readyz` → returns `{"status":"ready","version":"1.0.7"}` (200 OK)
+- **Liveness Probe**: `GET /healthz` → returns `{"status":"ok","version":"1.0.14-wonghak二改"}` (200 OK)
+- **Readiness Probe**: `GET /readyz` → returns `{"status":"ready","version":"1.0.14-wonghak二改"}` (200 OK)
 - **Prometheus Metrics**: `GET /metrics` → exports standard metrics including request totals, latencies, active connections, and synthetic wrapper counts.
 - **Emergency Fallback**: Set `WRAPPER_MODE=off` in `.env` and restart the gateway to revert to transparent raw passthrough.
+
+---
+
+### 🗂️ Repository Layout
+
+```text
+Antigravity-gateway/
+├── cmd/
+│   ├── gateway/          # server entry point (CLI, multi-platform binaries)
+│   ├── androidbridge/    # JNI bridge, built into libantigravity.so
+│   └── live_test/        # end-to-end smoke client
+├── internal/             # anti-truncation core: rewriting, streaming, retry/circuit breaker
+├── pkg/                  # reusable libraries: upstream adapters, logging, config loading
+├── android/              # Android project (Kotlin + Gradle)
+│   └── app/src/main/java/com/antigravity/gateway/
+│       ├── GatewayApplication.kt   # startup: theme, crash recorder, safe mode
+│       ├── bridge/                 # JNI wrapper around the Go core
+│       ├── data/                   # config models, Keystore crypto, theme preferences
+│       ├── net/                    # gateway self-test client (models / chat)
+│       ├── service/                # foreground service (background keep-alive)
+│       ├── ui/                     # single-screen dashboard (Activity / ViewModel)
+│       └── util/                   # crash reporter, network helpers
+├── .github/workflows/    # CI: Android build + multi-platform release
+└── Dockerfile            # container deployment for the server
+```
+
+### 📦 Versioning & Release Pipeline
+
+- The version string is kept identical in four places: `android/app/build.gradle.kts` (`versionCode`/`versionName`), `cmd/gateway/main.go`, `internal/*/engine.go` and this README.
+- Pushing a `v*` tag triggers `.github/workflows/release.yml`, which:
+  1. builds and tests the Android app (debug + release, unit tests, lint);
+  2. cross-compiles six server binaries (Linux/Windows/macOS × amd64/arm64);
+  3. injects the tag and commit SHA via `ldflags -X main.Version=<tag>`;
+  4. uploads every artifact plus `checksums.txt` (SHA-256) to the GitHub Release.
+- Verify a release:
+
+```bash
+gh release view v1.0.14-wonghak二改
+sha256sum -c checksums.txt
+antigravity-gateway --version                                  # v1.0.14-wonghak二改 (commit: ...)
+aapt2 dump badging antigravity-gateway-v1.0.14-wonghak二改.apk | head -1    # APK version
+```
+
+- Published versions are immutable: every change batch bumps the patch level and repeats the full verification chain (unit tests → device checks → release validation).
 
 ---
 
@@ -825,7 +1125,13 @@ Internal refusal indicates sensitive keywords in the prompt card. Adjust your ch
 ---
 
 <a name="license"></a>
+## 🤝 参与贡献 / Contributing
+
+- **问题反馈**：请附上应用内「查看崩溃日志」的内容（或 `下载/AntigravityGateway/` 里的文件）与系统版本、机型信息，能显著加快定位速度。
+- **提交改动**：Fork → 新建分支 → 保持 `versionCode`/`versionName` 与 Go 侧版本一致 → 运行 `./gradlew :app:testDebugUnitTest :app:lintDebug` 与 `go build ./...` → 提交 Pull Request。
+- **代码风格**：Kotlin 使用 4 空格缩进与不可变优先；Go 遵循标准 `gofmt`/`go vet`；提交信息使用 `feat:` / `fix:` / `ci:` / `docs:` 前缀。
+
 ## 📄 License
 
-This project is open-sourced under the [MIT License](LICENSE).  
+This project is licensed under the [MIT License](LICENSE).
 Copyright (c) 2026 Xeltra233.

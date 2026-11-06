@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 
 	"antigravity-gateway/internal/config"
 )
@@ -259,6 +261,10 @@ func (inj *RequestInjector) InjectContext(ctx context.Context, rawBody []byte) (
 	bodyMap["tools"] = tools
 
 	// Handle tool_choice mapping
+	defaultChoice := "auto"
+	if !hasDownstreamTools && !inj.cfg.NativeStream && !strings.HasSuffix(strings.ToLower(modelStr), "-search") && os.Getenv("SYNTHETIC_TOOL_CHOICE") != "auto" {
+		defaultChoice = "required"
+	}
 	forcedRealTool := false
 	if tc, ok := bodyMap["tool_choice"]; ok {
 		switch v := tc.(type) {
@@ -268,14 +274,14 @@ func (inj *RequestInjector) InjectContext(ctx context.Context, rawBody []byte) (
 			} else if v == "required" {
 				bodyMap["tool_choice"] = "required"
 			} else if v == "auto" {
-				bodyMap["tool_choice"] = "auto"
+				bodyMap["tool_choice"] = defaultChoice
 			}
 		case map[string]any:
 			forcedRealTool = true
 			bodyMap["tool_choice"] = v
 		}
 	} else {
-		bodyMap["tool_choice"] = "auto"
+		bodyMap["tool_choice"] = defaultChoice
 	}
 
 	// Prepare messages & inject synthetic control prompt while sanitizing conversation turns for Gemini/CPA

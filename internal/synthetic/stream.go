@@ -7,6 +7,10 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+	"unicode/utf8"
 
 	"antigravity-gateway/internal/config"
 )
@@ -26,6 +30,7 @@ type ChoiceStreamState struct {
 	SyntheticToolIndex int
 	SideBuffer         strings.Builder
 	SideBufferEmitted  bool
+	ContentEmitted     bool
 	RealToolsSeen      map[int]int // original index -> remapped index
 	NextRealIndex      int
 	RoleEmitted        bool
@@ -78,6 +83,8 @@ type RawChunkFunctionCallDesc struct {
 	Arguments string `json:"arguments,omitempty"`
 }
 
+const smoothChunkRuneSize = 500
+
 func (st *StreamTransformer) Transform(upstreamReader io.Reader, w io.Writer, flusher http.Flusher) (*StreamStats, error) {
 	stats := &StreamStats{}
 	scanner := bufio.NewScanner(upstreamReader)
@@ -101,19 +108,148 @@ func (st *StreamTransformer) Transform(upstreamReader io.Reader, w io.Writer, fl
 		return s
 	}
 
+	var writeMu sync.Mutex
+	var lastWriteNano atomic.Int64
+	lastWriteNano.Store(time.Now().UnixNano())
+	var lastID, lastModel string
+	var lastCreated int64
+	var streamClosed bool
+
+	writeRawString := func(msg string) error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		if streamClosed {
+			return nil
+		}
+		n, err := io.WriteString(w, msg)
+		stats.BytesWritten += int64(n)
+		lastWriteNano.Store(time.Now().UnixNano())
+		if flusher != nil {
+			flusher.Flush()
+		}
+		return err
+	}
+
 	writeSSEData := func(data any) error {
 		b, err := json.Marshal(data)
 		if err != nil {
 			return err
 		}
 		msg := fmt.Sprintf("data: %s\n\n", string(b))
-		n, err := io.WriteString(w, msg)
-		stats.BytesWritten += int64(n)
-		if flusher != nil {
-			flusher.Flush()
-		}
-		return err
+		return writeRawString(msg)
 	}
+
+	writeContentChunks := func(id string, created int64, model string, choiceIdx int, text string) error {
+		if text == "" {
+			return nil
+		}
+		if utf8.RuneCountInString(text) <= smoothChunkRuneSize {
+			contentChunk := map[string]any{
+				"id":      id,
+				"object":  "chat.completion.chunk",
+				"created": created,
+				"model":   model,
+				"choices": []map[string]any{
+					{
+						"index": choiceIdx,
+						"delta": map[string]any{
+							"content": text,
+						},
+						"finish_reason": nil,
+					},
+				},
+			}
+			return writeSSEData(contentChunk)
+		}
+		runes := []rune(text)
+		for i := 0; i < len(runes); i += smoothChunkRuneSize {
+			end := i + smoothChunkRuneSize
+			if end > len(runes) {
+				end = len(runes)
+			}
+			part := string(runes[i:end])
+			contentChunk := map[string]any{
+				"id":      id,
+				"object":  "chat.completion.chunk",
+				"created": created,
+				"model":   model,
+				"choices": []map[string]any{
+					{
+						"index": choiceIdx,
+						"delta": map[string]any{
+							"content": part,
+						},
+						"finish_reason": nil,
+					},
+				},
+			}
+			if err := writeSSEData(contentChunk); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// Background heartbeat goroutine during long tool_call upstream buffering
+	stopHB := make(chan struct{})
+	defer func() {
+		writeMu.Lock()
+		streamClosed = true
+		writeMu.Unlock()
+		close(stopHB)
+	}()
+
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopHB:
+				return
+			case <-ticker.C:
+				idle := time.Since(time.Unix(0, lastWriteNano.Load()))
+				if idle < 9*time.Second {
+					continue
+				}
+				writeMu.Lock()
+				if streamClosed {
+					writeMu.Unlock()
+					return
+				}
+				// Always send SSE comment heartbeat
+				n, _ := io.WriteString(w, ": keepalive\n\n")
+				stats.BytesWritten += int64(n)
+				// If initial chunk metadata is already available, also emit an empty content delta
+				// so downstream clients/SDKs reset their JSON chunk idle timers.
+				if lastID != "" {
+					hbChunk := map[string]any{
+						"id":      lastID,
+						"object":  "chat.completion.chunk",
+						"created": lastCreated,
+						"model":   lastModel,
+						"choices": []map[string]any{
+							{
+								"index": 0,
+								"delta": map[string]any{
+									"content": "",
+								},
+								"finish_reason": nil,
+							},
+						},
+					}
+					if b, err := json.Marshal(hbChunk); err == nil {
+						n2, _ := io.WriteString(w, fmt.Sprintf("data: %s\n\n", string(b)))
+						stats.BytesWritten += int64(n2)
+					}
+				}
+				lastWriteNano.Store(time.Now().UnixNano())
+				if flusher != nil {
+					flusher.Flush()
+				}
+				writeMu.Unlock()
+			}
+		}
+	}()
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -124,7 +260,10 @@ func (st *StreamTransformer) Transform(upstreamReader io.Reader, w io.Writer, fl
 		}
 
 		if strings.HasPrefix(trimmed, ":") {
-			// SSE comment/ping, forward or ignore
+			// Forward SSE comment/keepalive only during live streaming (when flusher is present)
+			if flusher != nil {
+				_ = writeRawString(": keepalive\n\n")
+			}
 			continue
 		}
 
@@ -142,6 +281,18 @@ func (st *StreamTransformer) Transform(upstreamReader io.Reader, w io.Writer, fl
 			// Raw unparseable chunk, ignore or log
 			continue
 		}
+
+		writeMu.Lock()
+		if chunk.ID != "" {
+			lastID = chunk.ID
+		}
+		if chunk.Created != 0 {
+			lastCreated = chunk.Created
+		}
+		if chunk.Model != "" {
+			lastModel = chunk.Model
+		}
+		writeMu.Unlock()
 
 		// If chunk has no choices but has usage info, forward as usage chunk
 		if len(chunk.Choices) == 0 && chunk.Usage != nil {
@@ -236,22 +387,8 @@ func (st *StreamTransformer) Transform(upstreamReader io.Reader, w io.Writer, fl
 						if tc.Function.Arguments != "" {
 							emitted, _, err := state.SyntheticDecoder.Feed(tc.Function.Arguments)
 							if err == nil && emitted != "" {
-								contentChunk := map[string]any{
-									"id":      chunk.ID,
-									"object":  "chat.completion.chunk",
-									"created": chunk.Created,
-									"model":   chunk.Model,
-									"choices": []map[string]any{
-										{
-											"index": c.Index,
-											"delta": map[string]any{
-												"content": emitted,
-											},
-											"finish_reason": nil,
-										},
-									},
-								}
-								_ = writeSSEData(contentChunk)
+								state.ContentEmitted = true
+								_ = writeContentChunks(chunk.ID, chunk.Created, chunk.Model, c.Index, emitted)
 							}
 						}
 					} else {
@@ -317,22 +454,8 @@ func (st *StreamTransformer) Transform(upstreamReader io.Reader, w io.Writer, fl
 						if st.cfg.StreamSideBufferBytes > 0 && !state.SideBufferEmitted {
 							state.SideBuffer.WriteString(contentStr)
 							if state.SideBuffer.Len() >= st.cfg.StreamSideBufferBytes {
-								flushChunk := map[string]any{
-									"id":      chunk.ID,
-									"object":  "chat.completion.chunk",
-									"created": chunk.Created,
-									"model":   chunk.Model,
-									"choices": []map[string]any{
-										{
-											"index": c.Index,
-											"delta": map[string]any{
-												"content": state.SideBuffer.String(),
-											},
-											"finish_reason": nil,
-										},
-									},
-								}
-								_ = writeSSEData(flushChunk)
+								state.ContentEmitted = true
+								_ = writeContentChunks(chunk.ID, chunk.Created, chunk.Model, c.Index, state.SideBuffer.String())
 								state.SideBufferEmitted = true
 								state.SideBuffer.Reset()
 							}
@@ -342,22 +465,8 @@ func (st *StreamTransformer) Transform(upstreamReader io.Reader, w io.Writer, fl
 								contentStr = state.SideBuffer.String() + contentStr
 								state.SideBuffer.Reset()
 							}
-							contentChunk := map[string]any{
-								"id":      chunk.ID,
-								"object":  "chat.completion.chunk",
-								"created": chunk.Created,
-								"model":   chunk.Model,
-								"choices": []map[string]any{
-									{
-										"index": c.Index,
-										"delta": map[string]any{
-											"content": contentStr,
-										},
-										"finish_reason": nil,
-									},
-								},
-							}
-							_ = writeSSEData(contentChunk)
+							state.ContentEmitted = true
+							_ = writeContentChunks(chunk.ID, chunk.Created, chunk.Model, c.Index, contentStr)
 							state.SideBufferEmitted = true
 						}
 					}
@@ -373,50 +482,27 @@ func (st *StreamTransformer) Transform(upstreamReader io.Reader, w io.Writer, fl
 					// Check remaining buffer repair
 					rem, _ := state.SyntheticDecoder.Finish(int(st.cfg.MaxResponseBytes))
 					if rem != "" {
-						remChunk := map[string]any{
-							"id":      chunk.ID,
-							"object":  "chat.completion.chunk",
-							"created": chunk.Created,
-							"model":   chunk.Model,
-							"choices": []map[string]any{
-								{
-									"index": c.Index,
-									"delta": map[string]any{
-										"content": rem,
-									},
-									"finish_reason": nil,
-								},
-							},
-						}
-						_ = writeSSEData(remChunk)
+						state.ContentEmitted = true
+						_ = writeContentChunks(chunk.ID, chunk.Created, chunk.Model, c.Index, rem)
 					}
 
 					if finishReasonStr == "tool_calls" {
 						if len(state.RealToolsSeen) == 0 {
 							finishReasonStr = "stop"
 						}
+					} else if (finishReasonStr == "content_filter" || finishReasonStr == "prohibited_content" || finishReasonStr == "SAFETY") && state.ContentEmitted {
+						finishReasonStr = "stop"
 					}
 				} else {
 					// No synthetic call: flush remaining side buffer if any
 					if state.SideBuffer.Len() > 0 {
-						fbChunk := map[string]any{
-							"id":      chunk.ID,
-							"object":  "chat.completion.chunk",
-							"created": chunk.Created,
-							"model":   chunk.Model,
-							"choices": []map[string]any{
-								{
-									"index": c.Index,
-									"delta": map[string]any{
-										"content": state.SideBuffer.String(),
-									},
-									"finish_reason": nil,
-								},
-							},
-						}
-						_ = writeSSEData(fbChunk)
+						state.ContentEmitted = true
+						_ = writeContentChunks(chunk.ID, chunk.Created, chunk.Model, c.Index, state.SideBuffer.String())
 						state.SideBufferEmitted = true
 						state.SideBuffer.Reset()
+					}
+					if (finishReasonStr == "content_filter" || finishReasonStr == "prohibited_content" || finishReasonStr == "SAFETY") && state.ContentEmitted {
+						finishReasonStr = "stop"
 					}
 				}
 				finalChunk := map[string]any{
@@ -445,12 +531,7 @@ func (st *StreamTransformer) Transform(upstreamReader io.Reader, w io.Writer, fl
 	}
 
 	// Emit [DONE]
-	doneMsg := "data: [DONE]\n\n"
-	n, _ := io.WriteString(w, doneMsg)
-	stats.BytesWritten += int64(n)
-	if flusher != nil {
-		flusher.Flush()
-	}
+	_ = writeRawString("data: [DONE]\n\n")
 
 	return stats, nil
 }
